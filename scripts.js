@@ -5,7 +5,7 @@
 // ==========================================
 
 // ── GAS URL — ใส่ URL ของ GAS Web App ที่นี่ ───────────────────
-var GAS_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbydi-JmXVn6_wTlsa1i8AK5he8qxW_Q4z54fOYXytLYsAoZt8Qnd4KHW3nUFJScJMDf/exec/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbydi-JmXVn6_wTlsa1i8AK5he8qxW_Q4z54fOYXytLYsAoZt8Qnd4KHW3nUFJScJMDf/exec';
 
 // ── callGAS: แทน google.script.run ─────────────────────────────
 function callGAS(action, params) {
