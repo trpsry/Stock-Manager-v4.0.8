@@ -29,7 +29,7 @@ function getModalsHTML() {
   <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-2xl bg-slate-900 text-white text-sm font-bold shadow-2xl opacity-0 translate-y-10 pointer-events-none transition-all duration-500"></div>
 
   <!-- ── Add Product Modal ──────────────────────────────────────── -->
-  <div id="add-product-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" onclick="closeAddProductModal(event)">
+  <div id="add-product-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" style="padding-bottom: env(safe-area-inset-bottom)" onclick="closeAddProductModal(event)">
     <div class="bg-white rounded-[32px] shadow-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-5">
         <h3 class="font-black text-slate-800 text-lg">เพิ่มสินค้าใหม่</h3>
@@ -72,7 +72,7 @@ function getModalsHTML() {
   </div>
 
   <!-- ── Scanner Modal (ใหม่) ──────────────────────────────────── -->
-  <div id="scanner-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-end justify-center sm:items-center px-4 pb-4 sm:pb-0">
+  <div id="scanner-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-end justify-center sm:items-center px-4 pb-4 sm:pb-0" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom))">
     <div class="bg-white rounded-[32px] shadow-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-4">
         <div>
