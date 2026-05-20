@@ -11,8 +11,37 @@ const APP_ICON_URL = 'https://i.postimg.cc/zDFxrHNZ/image.png';
 const SYSTEM_SHEETS = ['Aging', 'Aging_Order'];
 const TEMPLATE_SHEET_NAMES = ['Oishi', 'Est', 'Alc.', 'F&N'];
 
-// ── doGet: serve หน้า HTML (ยังใช้อยู่สำหรับ GAS fallback) ─────
-function doGet() {
+// ── doGet: handle API requests via JSONP/GET ──────────────────
+function doGet(e) {
+  // หากมีการส่ง parameter 'action' มา ให้ประมวลผลเป็น API (JSONP)
+  if (e.parameter.action) {
+    try {
+      const action = e.parameter.action;
+      const callback = e.parameter.callback;
+      let resultData;
+
+      if (action === 'getAllSheetData') resultData = JSON.parse(getAllSheetData());
+      else resultData = { success: false, error: 'Unknown GET action: ' + action };
+
+      const jsonString = JSON.stringify(resultData);
+      
+      // ถ้ามี callback ให้ตอบกลับเป็น JSONP
+      if (callback) {
+        return ContentService.createTextOutput(`${callback}(${jsonString})`)
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      
+      // ถ้าไม่มี callback ให้ตอบเป็น JSON ปกติ
+      return ContentService.createTextOutput(jsonString)
+        .setMimeType(ContentService.MimeType.JSON);
+
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // หากไม่มี action ให้แสดงหน้า HTML ปกติ
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Stock Manager')

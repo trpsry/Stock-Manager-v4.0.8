@@ -9,14 +9,33 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbydi-JmXVn6_wTlsa1i8AK5he
 // ── callGAS: แทน google.script.run ─────────────────────────────
 function callGAS(action, params) {
   var body = Object.assign({ action: action }, params || {});
+  
+  // สำหรับการดึงข้อมูล (GET) ให้ใช้ JSONP เพื่อเลี่ยง CORS
+  if (action === 'getAllSheetData') {
+    return new Promise(function(resolve, reject) {
+      var callbackName = 'jsonp_cb_' + Math.round(100000 * Math.random());
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        resolve(JSON.stringify(data));
+      };
+      
+      var script = document.createElement('script');
+      script.src = GAS_URL + '?action=' + action + '&callback=' + callbackName;
+      script.onerror = function() { reject(new Error('JSONP load error')); };
+      document.body.appendChild(script);
+    });
+  }
+
+  // สำหรับการบันทึกข้อมูล (POST) ใช้ fetch (no-cors)
   return fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',         // GAS ไม่รองรับ CORS — ใช้ no-cors + text response
+    mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body)
-  }).then(function(r) {
-    // no-cors จะได้ opaque response — ถ้า GAS ตั้ง CORS header แล้วเปลี่ยนเป็น cors
-    return r.text();
+  }).then(function() {
+    // no-cors ไม่เห็น response — สมมติว่าสำเร็จถ้าไม่ error
+    return JSON.stringify({ success: true });
   });
 }
 
