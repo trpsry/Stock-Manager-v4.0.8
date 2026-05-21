@@ -962,6 +962,8 @@ function startScanner() {
 
             if (result) {
               var raw = result.getText();
+              // เพิ่มบรรทัดนี้ — แสดง raw ใน UI ชั่วคราว
+document.getElementById('scanner-result-text').textContent = raw;
 
 // ── สกัด SKU: เลือก EAN-13 (13 หลัก) จาก Code128 รูปแบบ xxx/EAN13/xx
 var sku = '';
