@@ -972,9 +972,13 @@ function startScanner() {
     var mid = parts[1].trim();
     if (/^\d{13,14}$/.test(mid)) sku = mid;
   } else {
-    var raw2 = raw.trim();
-    if (/^\d{13,14}$/.test(raw2)) sku = raw2;
+  var candidates = raw.match(/\d{13}/g) || [];
+  for (var ci = 0; ci < candidates.length; ci++) {
+    if (isValidEAN13(candidates[ci])) { sku = candidates[ci]; break; }
   }
+  if (!sku && /^\d{13,14}$/.test(raw.trim())) sku = raw.trim();
+}
+
 
   if (!sku || sku.length < 13) return;
 
@@ -1007,7 +1011,14 @@ function startScanner() {
       if (statusEl) statusEl.textContent = err.message || 'โหลด Scanner ไม่สำเร็จ';
     });
 }
-
+function isValidEAN13(s) {
+  if (!/^\d{13}$/.test(s)) return false;
+  var sum = 0;
+  for (var i = 0; i < 12; i++) {
+    sum += parseInt(s[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  return (10 - (sum % 10)) % 10 === parseInt(s[12]);
+}
 function findProductBySku(sku) {
   var names = Object.keys(state.allData);
   for (var i = 0; i < names.length; i++) {
