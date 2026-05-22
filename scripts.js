@@ -304,7 +304,7 @@ function buildCard(p) {
             '<span class="timestamp-label" id="ohtime_' + u + '">' + (p.ohTime ? 'อัปเดต: ' + p.ohTime : '') + '</span>' +
           '</div>' +
           '<div class="flex gap-3">' +
-            '<input type="number" inputmode="numeric" class="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-500 font-black text-lg text-blue-700" id="oh_' + u + '" value="' + ea(p.oh) + '"/>' +
+            '<input type="text" inputmode="numeric" pattern="[0-9]*" class="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-500 font-black text-lg text-blue-700" id="oh_' + u + '" value="' + ea(p.oh) + '"/>'
             '<button class="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all" id="ohbtn_' + u + '" onclick="' + bh('saveOh',[sn,p.rowIndex,u]) + '">บันทึก OH</button>' +
           '</div>' +
         '</div>' +
@@ -1365,6 +1365,18 @@ if (typeof tailwind !== 'undefined') {
 }
 
 // ── Boot ─────────────────────────────────────────────────────────
+// ── Fix iOS cursor position ──────────────────────────────────────
+document.addEventListener('focus', function(e) {
+  var el = e.target;
+  if (el.tagName !== 'INPUT' || el.type === 'checkbox' || el.type === 'radio') return;
+  setTimeout(function() {
+    try {
+      var len = el.value.length;
+      el.setSelectionRange(len, len);
+    } catch(err) {}
+  }, 0);
+}, true);
+
 window.addEventListener('DOMContentLoaded', function() {
   updatePlaceholder();
   loadAllData({ useCache: true });
