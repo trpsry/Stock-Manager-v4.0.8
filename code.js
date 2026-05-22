@@ -80,6 +80,7 @@ function doPost(e) {
     else if (action === 'saveOhData')      result = saveOhData(params.sheet, params.row, params.oh);
     else if (action === 'clearLotData')    result = clearLotData(params.sheet, params.row);
     else if (action === 'toggleFavorite')  result = toggleFavorite(params.sheet, params.row, params.currentStatus);
+    else if (action === 'toggleOS')        result = toggleOS(params.sheet, params.row, params.currentStatus);
     else if (action === 'addProduct')      result = addProduct(params.sheet, params.sku, params.name, params.size);
     else if (action === 'reorderProduct')  result = reorderProduct(params.skuA, params.skuB);
     else result = JSON.stringify({ success: false, error: 'Unknown action: ' + action });
@@ -130,11 +131,11 @@ function formatUpdateDate_(value) {
 
 function ensureColumns_(sheet) {
   const maxCols = sheet.getMaxColumns();
-  if (maxCols < 12) {
-    sheet.insertColumnsAfter(maxCols, 12 - maxCols);
+  if (maxCols < 15) {
+    sheet.insertColumnsAfter(maxCols, 15 - maxCols);
   }
-  const headers = [[OH_HEADER, OH_TIME_HEADER, LOT_TIME_HEADER, 'Favorite']];
-  sheet.getRange(2, 9, 1, 4).setValues(headers);
+  const headers = [[OH_HEADER, OH_TIME_HEADER, LOT_TIME_HEADER, 'Favorite', 'FavTime', 'OS', 'OSTime']];
+  sheet.getRange(2, 9, 1, 7).setValues(headers);
 }
 
 function getMainSheetNames_(ss) {
@@ -153,12 +154,12 @@ function getTemplateSheet_(ss) {
 
 function initializeProductSheet_(sheet, sheetName) {
   sheet.getRange(1, 1).setValue('Stock Manager — ' + sheetName);
-  sheet.getRange(2, 1, 1, 12).setValues([[
+  sheet.getRange(2, 1, 1, 15).setValues([[
     'ลำดับ', 'SKU', 'ชื่อสินค้า', 'ขนาด',
     'LOT1', 'LOT2', 'LOT3', 'LOT4',
-    OH_HEADER, OH_TIME_HEADER, LOT_TIME_HEADER, 'Favorite'
+    OH_HEADER, OH_TIME_HEADER, LOT_TIME_HEADER, 'Favorite', 'FavTime', 'OS', 'OSTime'
   ]]);
-  sheet.getRange(2, 1, 1, 12).setFontWeight('bold');
+  sheet.getRange(2, 1, 1, 15).setFontWeight('bold');
   ensureColumns_(sheet);
 }
 
@@ -232,11 +233,12 @@ function getAllSheetData() {
         ensureColumns_(sheet);
         const lastRow = sheet.getLastRow();
         if (lastRow >= 3) {
-          const vals = sheet.getRange(3, 1, lastRow - 2, 13).getValues();
+          const vals = sheet.getRange(3, 1, lastRow - 2, 15).getValues();
           vals.forEach((row, idx) => {
             const bc = String(row[1] || '').trim();
             if (bc) {
               const favTime = row[12] instanceof Date && !isNaN(row[12].getTime()) ? row[12].getTime() : 0;
+              const osTime = row[14] instanceof Date && !isNaN(row[14].getTime()) ? row[14].getTime() : 0;
               allRawData[name][bc] = {
                 rowIndex: idx + 3,
                 barcode: bc,
@@ -250,7 +252,9 @@ function getAllSheetData() {
                 ohTime: formatUpdateDate_(row[9]),
                 lotTime: formatUpdateDate_(row[10]),
                 fav: row[11] === true || String(row[11]).toUpperCase() === 'TRUE',
-                favTime: favTime
+                favTime: favTime,
+                os: row[13] === true || String(row[13]).toUpperCase() === 'TRUE',
+                osTime: osTime
               };
             }
           });
@@ -397,9 +401,7 @@ function toggleFavorite(sheetName, rowIndex, currentStatus) {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) return JSON.stringify({ success: false, error: `ไม่พบชีท: ${sheetName}` });
 
-    if (sheet.getMaxColumns() < 13) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), 13 - sheet.getMaxColumns());
-    }
+    ensureColumns_(sheet);
 
     const newStatus = !currentStatus;
     const now = new Date();
@@ -408,6 +410,27 @@ function toggleFavorite(sheetName, rowIndex, currentStatus) {
 
     clearDataCache_();
     return JSON.stringify({ success: true, fav: newStatus, favTime: newStatus ? now.getTime() : null });
+  } catch (err) {
+    return JSON.stringify({ success: false, error: err.message });
+  }
+}
+
+// ── Toggle Out of Stock ─────────────────────────────────────────
+function toggleOS(sheetName, rowIndex, currentStatus) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return JSON.stringify({ success: false, error: `ไม่พบชีท: ${sheetName}` });
+
+    ensureColumns_(sheet);
+
+    const newStatus = !currentStatus;
+    const now = new Date();
+    sheet.getRange(rowIndex, 14).setValue(newStatus);
+    if (newStatus) sheet.getRange(rowIndex, 15).setValue(now);
+
+    clearDataCache_();
+    return JSON.stringify({ success: true, os: newStatus, osTime: newStatus ? now.getTime() : null });
   } catch (err) {
     return JSON.stringify({ success: false, error: err.message });
   }
@@ -423,6 +446,7 @@ function addProduct(sheetName, sku, name, size) {
 
     let sheet = ss.getSheetByName(sheetName);
     if (!sheet) sheet = createProductSheet_(ss, sheetName);
+    ensureColumns_(sheet);
 
     const cleanSku  = formatOh_(sku);
     const cleanName = formatOh_(name);
@@ -437,7 +461,7 @@ function addProduct(sheetName, sku, name, size) {
       }
     }
 
-    const newRowData = ['', cleanSku, cleanName, size, '', '', '', '', '', '', '', false];
+    const newRowData = ['', cleanSku, cleanName, size, '', '', '', '', '', '', '', false, '', false, ''];
     sheet.appendRow(newRowData);
     const newRowIndex = sheet.getLastRow();
     sheet.getRange(newRowIndex, 2).setNumberFormat('@');
@@ -461,7 +485,7 @@ function addProduct(sheetName, sku, name, size) {
         agingSheet.appendRow([nextOrder, cleanSku, cleanName, sheetName]);
         agingSheet.getRange(agingSheet.getLastRow(), 2).setNumberFormat('@');
       } else {
-        agingSheet.appendRow(['', cleanSku, cleanName, size, '', '', '', '', '', '', '', false]);
+        agingSheet.appendRow(['', cleanSku, cleanName, size, '', '', '', '', '', '', '', false, '', false, '']);
         const nr = agingSheet.getLastRow();
         agingSheet.getRange(nr, 2).setNumberFormat('@');
         agingSheet.getRange(nr, 5, 1, 4).setNumberFormat('@');

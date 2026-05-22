@@ -7,7 +7,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbydi-JmXVn6_wTlsa1i8AK5he8qxW_Q4z54fOYXytLYsAoZt8Qnd4KHW3nUFJScJMDf/exec';
 var ZXING_SCRIPT_URL = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
 var ZXING_SCRIPT_ID  = 'zxing-library-script';
-var APP_CACHE_KEY    = 'stock-manager-v3-cache-v2';
+var APP_CACHE_KEY    = 'stock-manager-v3-cache-v3';
 var APP_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // ── callGAS: แทน google.script.run ─────────────────────────────
@@ -120,7 +120,7 @@ function writeAppCache(data, sheetNames) {
 function applyDataSnapshot(data, sheetNames) {
   state.allData = data || {};
   state.sheetNames = Array.isArray(sheetNames) ? sheetNames : [];
-  if (state.subTab !== 'All' && state.subTab !== 'Favorite' && state.sheetNames.indexOf(state.subTab) === -1) {
+  if (state.subTab !== 'All' && state.subTab !== 'Favorite' && state.subTab !== 'OS' && state.sheetNames.indexOf(state.subTab) === -1) {
     state.subTab = 'All';
   }
   renderSubTabs();
@@ -191,11 +191,14 @@ function buildOverviewCard(p) {
   var sn   = p.sheetName || '';
   var u    = uid(sn, p.rowIndex);
   var lots = [p.lot1, p.lot2, p.lot3, p.lot4].filter(Boolean);
+  var cardCls = p.os === true
+    ? 'product-card bg-rose-50 rounded-3xl border border-rose-200 shadow-sm ring-1 ring-rose-100 overflow-hidden p-4 space-y-2'
+    : 'product-card bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden p-4 space-y-2';
   var lotsHtml = lots.length
     ? lots.map(function(l) { return '<span class="font-mono text-[11px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">' + ea(l) + '</span>'; }).join('')
     : '<span class="text-[11px] text-slate-300 font-medium">ยังไม่มี Lot</span>';
 
-  return '<div class="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden p-4 space-y-2">' +
+  return '<div class="' + cardCls + '">' +
     '<div class="flex items-center justify-between gap-2">' +
       '<div class="flex-1 min-w-0">' +
         '<p class="font-black text-slate-800 text-sm leading-tight truncate">' + ea(name) + '</p>' +
@@ -220,6 +223,12 @@ function buildOverviewCard(p) {
 }
 
 // ── Product Card ─────────────────────────────────────────────────
+function productCardClass(isOs) {
+  return isOs
+    ? 'product-card bg-rose-50 rounded-3xl border border-rose-200 shadow-sm ring-1 ring-rose-100 overflow-hidden'
+    : 'product-card bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden';
+}
+
 function buildCard(p) {
   var name = String(p.name || '');
   var bc   = String(p.barcode || '');
@@ -238,8 +247,11 @@ function buildCard(p) {
   }
 
   var isFav   = p.fav === true;
+  var isOs    = p.os === true;
   var favBtn  = buildStarBtn(u, sn, p.rowIndex, isFav);
+  var osBtn   = buildOsBtn(u, sn, p.rowIndex, isOs);
   var actionBtns = '';
+  var cardCls = productCardClass(isOs);
 
   if (state.reorderMode && state.current === AGING_TAB && state.subTab === 'All') {
     actionBtns =
@@ -255,7 +267,7 @@ function buildCard(p) {
     actionBtns = gearBtn + barcodeBtn;
   }
 
-  return '<div class="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden">' +
+  return '<div class="' + cardCls + '">' +
     '<div class="p-6 space-y-4">' +
       '<div class="flex justify-between items-start gap-4">' +
         '<div class="flex-1 min-w-0">' +
@@ -265,7 +277,7 @@ function buildCard(p) {
             (sz ? '<span class="text-[11px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">' + sz + '</span>' : '') +
           '</div>' +
         '</div>' +
-        '<div class="flex gap-2">' + favBtn + actionBtns + '</div>' +
+        '<div class="flex gap-2">' + favBtn + osBtn + actionBtns + '</div>' +
       '</div>' +
 
       '<div id="edit_' + u + '" class="hidden space-y-4 pt-4 border-t border-slate-100">' +
@@ -328,6 +340,10 @@ function showToast(msg, isError) {
 }
 
 // ── Tab Logic ────────────────────────────────────────────────────
+function getSubTabName(btn) {
+  return btn ? (btn.getAttribute('data-subtab') || btn.textContent.trim()) : '';
+}
+
 function switchTab(name, btn) {
   state.current = name;
   state.search  = '';
@@ -339,9 +355,9 @@ function switchTab(name, btn) {
   var subContainer = document.getElementById('subtabs-container');
   if (name === AGING_TAB) {
     subContainer.classList.remove('hidden'); subContainer.classList.add('flex');
-    var targetSub = Array.from(subContainer.querySelectorAll('.subtab-btn')).find(function(b) { return b.textContent.trim() === state.subTab; });
+    var targetSub = Array.from(subContainer.querySelectorAll('.subtab-btn')).find(function(b) { return getSubTabName(b) === state.subTab; });
     if (targetSub) switchSubTab(state.subTab, targetSub);
-    else { var firstSub = subContainer.querySelector('.subtab-btn'); if (firstSub) switchSubTab(firstSub.textContent.trim(), firstSub); }
+    else { var firstSub = subContainer.querySelector('.subtab-btn'); if (firstSub) switchSubTab(getSubTabName(firstSub), firstSub); }
   } else {
     subContainer.classList.remove('flex'); subContainer.classList.add('hidden');
     renderList();
@@ -370,7 +386,7 @@ function switchSubTab(name, btn) {
 function syncActiveSubTab() {
   var container = document.getElementById('subtabs-container');
   if (!container) return;
-  container.querySelectorAll('.subtab-btn').forEach(function(b) { b.classList.toggle('active', b.textContent.trim() === state.subTab); });
+  container.querySelectorAll('.subtab-btn').forEach(function(b) { b.classList.toggle('active', getSubTabName(b) === state.subTab); });
 }
 
 var _searchTimer = null;
@@ -398,6 +414,15 @@ function getCurrentProducts() {
       }
       outFav.sort(function(a, b) { return (b.favTime || 0) - (a.favTime || 0); });
       return outFav;
+    }
+    if (state.subTab === 'OS') {
+      var outOs = [];
+      for (var oi = 0; oi < mainSheets.length; oi++) {
+        var osRows = state.allData[mainSheets[oi]] || [];
+        for (var oj = 0; oj < osRows.length; oj++) { var op = osRows[oj]; if (!op.sheetName) op.sheetName = mainSheets[oi]; if (op.os === true) outOs.push(op); }
+      }
+      outOs.sort(function(a, b) { return (b.osTime || 0) - (a.osTime || 0); });
+      return outOs;
     }
     return state.allData[state.subTab] || [];
   }
@@ -427,16 +452,46 @@ function getFiltered() {
 function pad2(v) { return String(v).padStart(2, '0'); }
 function ea(v)   { return String(v || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function ja(v)   { if (typeof v === 'boolean') return String(v); return typeof v === 'number' ? String(v) : JSON.stringify(String(v == null ? '' : v)); }
-function bh(name, args) { return ea(name + '(' + args.map(ja).join(',') + ')'); }
+function jsCall(name, args) { return name + '(' + args.map(ja).join(',') + ')'; }
+function bh(name, args) { return ea(jsCall(name, args)); }
 function uid(sn, ri) { return String(sn || '').replace(/[^a-zA-Z0-9]/g, function(c) { return '_' + c.charCodeAt(0).toString(16); }) + '_' + ri; }
 
-function buildStarBtn(u, sn, ri, isFav) {
-  var borderCls  = isFav ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white';
-  var onclick    = bh('handleFavoriteClick', [sn, ri, isFav ? true : false, u]);
-  var svgContent = isFav
+function favoriteSvg(isFav) {
+  return isFav
     ? '<path d="M5 3h14a1 1 0 0 1 1 1v17l-7-3.5L6 21V4a1 1 0 0 1 1-1z" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
     : '<path d="M5 3h14a1 1 0 0 1 1 1v17l-7-3.5L6 21V4a1 1 0 0 1 1-1z" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
-  return '<button id="starbtn_' + u + '" onclick="' + onclick + '" class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-2xl border ' + borderCls + ' transition-all duration-200 active:scale-90" aria-label="Favorite"><svg class="w-5 h-5" viewBox="0 0 24 24">' + svgContent + '</svg></button>';
+}
+
+function favoriteBtnClass(isFav) {
+  return 'w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-90 ' + (isFav ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white');
+}
+
+function buildStarBtn(u, sn, ri, isFav) {
+  var onclick    = bh('handleFavoriteClick', [sn, ri, isFav ? true : false, u]);
+  return '<button id="starbtn_' + u + '" onclick="' + onclick + '" class="' + favoriteBtnClass(isFav) + '" aria-label="Favorite"><svg class="w-5 h-5" viewBox="0 0 24 24">' + favoriteSvg(isFav) + '</svg></button>';
+}
+
+function setFavoriteButtonState(btn, u, sn, ri, isFav) {
+  if (!btn) return;
+  btn.className = favoriteBtnClass(isFav);
+  btn.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24">' + favoriteSvg(isFav) + '</svg>';
+  btn.setAttribute('onclick', jsCall('handleFavoriteClick', [sn, ri, isFav ? true : false, u]));
+}
+
+function osBtnClass(isOs) {
+  return 'w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-90 ' + (isOs ? 'border-rose-600 bg-rose-600 text-white shadow-md shadow-rose-500/20' : 'border-rose-200 bg-white text-rose-600');
+}
+
+function buildOsBtn(u, sn, ri, isOs) {
+  var onclick = bh('handleOsClick', [sn, ri, isOs ? true : false, u]);
+  return '<button id="osbtn_' + u + '" onclick="' + onclick + '" class="' + osBtnClass(isOs) + '" aria-label="Out of stock"><span class="text-[10px] font-black leading-none tracking-wide">OS</span></button>';
+}
+
+function setOsButtonState(btn, u, sn, ri, isOs) {
+  if (!btn) return;
+  btn.className = osBtnClass(isOs);
+  btn.innerHTML = '<span class="text-[10px] font-black leading-none tracking-wide">OS</span>';
+  btn.setAttribute('onclick', jsCall('handleOsClick', [sn, ri, isOs ? true : false, u]));
 }
 
 // ── Lot Picker ────────────────────────────────────────────────────
@@ -511,6 +566,8 @@ function updProd(sn,ri,sku,name){var r=getRow(sn,ri);if(r){var ob=r.barcode,on=r
 function patchOh(u,oh,ohTime){var el=document.getElementById('ovoh_'+u);if(el)el.textContent=oh||'0';var tel=document.getElementById('ohtime_'+u);if(tel)tel.textContent=ohTime?'อัปเดต: '+ohTime:'';var ovtel=document.getElementById('ovohtime_'+u);if(ovtel)ovtel.textContent=ohTime||'';}
 function patchLotTime(u,lotTime){var tel=document.getElementById('lottime_'+u);if(tel)tel.textContent=lotTime?'อัปเดต: '+lotTime:'';}
 function patchProd(u,sku,name){var t=document.getElementById('title_'+u);if(t)t.textContent=name||'-';var s=document.getElementById('skudisplay_'+u);if(s)s.textContent=sku||'NO SKU';}
+function patchOsCard(u,isOs){var btn=document.getElementById('osbtn_'+u);var card=btn&&btn.closest?btn.closest('.product-card'):null;if(card)card.className=productCardClass(isOs);}
+function syncRowFlags(sn,ri,updates){var primary=null;var names=Object.keys(state.allData||{});for(var i=0;i<names.length;i++){var key=names[i];var rows=state.allData[key]||[];for(var j=0;j<rows.length;j++){var r=rows[j];var rowSheet=r.sheetName||key;if(r.rowIndex===ri&&rowSheet===sn){Object.assign(r,updates);if(key===sn)primary=r;}}}return primary||getRow(sn,ri);}
 
 // ── Actions ───────────────────────────────────────────────────────
 function toggleEdit(u) {
@@ -610,20 +667,70 @@ function clearLot(sn, ri, u) {
 // ── Favorite ─────────────────────────────────────────────────────
 function handleFavoriteClick(sn, ri, currentFav, u) {
   var r = getRow(sn, ri); if (!r) return;
-  var newFav = !currentFav;
-  r.fav = newFav;
+  var prevFav = r.fav === true;
+  var prevFavTime = r.favTime || 0;
+  var newFav = !prevFav;
+  var nextFavTime = newFav ? Date.now() : 0;
+  syncRowFlags(sn, ri, { fav: newFav, favTime: nextFavTime });
   var btn = document.getElementById('starbtn_' + u);
-  if (btn) {
-    btn.className = 'w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-90 ' + (newFav ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white');
-    btn.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24">' + (newFav ? '<path d="M5 3h14a1 1 0 0 1 1 1v17l-7-3.5L6 21V4a1 1 0 0 1 1-1z" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M5 3h14a1 1 0 0 1 1 1v17l-7-3.5L6 21V4a1 1 0 0 1 1-1z" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>') + '</svg>';
-  }
-  callGAS('toggleFavorite', { sheet: sn, row: ri, currentStatus: currentFav })
+  setFavoriteButtonState(btn, u, sn, ri, newFav);
+  writeAppCache(state.allData, state.sheetNames);
+  if (state.subTab === 'Favorite' && !newFav) renderList();
+  callGAS('toggleFavorite', { sheet: sn, row: ri, currentStatus: prevFav })
     .then(function(raw) {
       var res = JSON.parse(raw);
-      if (!res.success) { r.fav = currentFav; if (btn) btn.innerHTML = buildStarBtn(u,sn,ri,currentFav); showToast('ผิดพลาด: '+res.error,true); }
-      else if (res.favTime) r.favTime = res.favTime;
+      if (!res.success) {
+        syncRowFlags(sn, ri, { fav: prevFav, favTime: prevFavTime });
+        setFavoriteButtonState(document.getElementById('starbtn_' + u), u, sn, ri, prevFav);
+        writeAppCache(state.allData, state.sheetNames);
+        if (state.subTab === 'Favorite') renderList();
+        showToast('ผิดพลาด: '+res.error,true);
+      }
+      else if (res.favTime) { syncRowFlags(sn, ri, { favTime: res.favTime }); writeAppCache(state.allData, state.sheetNames); }
     })
-    .catch(function() { r.fav = currentFav; showToast('เกิดข้อผิดพลาด', true); });
+    .catch(function() {
+      syncRowFlags(sn, ri, { fav: prevFav, favTime: prevFavTime });
+      setFavoriteButtonState(document.getElementById('starbtn_' + u), u, sn, ri, prevFav);
+      writeAppCache(state.allData, state.sheetNames);
+      if (state.subTab === 'Favorite') renderList();
+      showToast('เกิดข้อผิดพลาด', true);
+    });
+}
+
+// ── Out of Stock ─────────────────────────────────────────────────
+function handleOsClick(sn, ri, currentOs, u) {
+  var r = getRow(sn, ri); if (!r) return;
+  var prevOs = r.os === true;
+  var prevOsTime = r.osTime || 0;
+  var newOs = !prevOs;
+  var nextOsTime = newOs ? Date.now() : 0;
+  syncRowFlags(sn, ri, { os: newOs, osTime: nextOsTime });
+  var btn = document.getElementById('osbtn_' + u);
+  setOsButtonState(btn, u, sn, ri, newOs);
+  patchOsCard(u, newOs);
+  writeAppCache(state.allData, state.sheetNames);
+  if (state.subTab === 'OS' && !newOs) renderList();
+  callGAS('toggleOS', { sheet: sn, row: ri, currentStatus: prevOs })
+    .then(function(raw) {
+      var res = JSON.parse(raw);
+      if (!res.success) {
+        syncRowFlags(sn, ri, { os: prevOs, osTime: prevOsTime });
+        setOsButtonState(document.getElementById('osbtn_' + u), u, sn, ri, prevOs);
+        patchOsCard(u, prevOs);
+        writeAppCache(state.allData, state.sheetNames);
+        if (state.subTab === 'OS') renderList();
+        showToast('ผิดพลาด: '+res.error,true);
+      }
+      else if (res.osTime) { syncRowFlags(sn, ri, { osTime: res.osTime }); writeAppCache(state.allData, state.sheetNames); }
+    })
+    .catch(function() {
+      syncRowFlags(sn, ri, { os: prevOs, osTime: prevOsTime });
+      setOsButtonState(document.getElementById('osbtn_' + u), u, sn, ri, prevOs);
+      patchOsCard(u, prevOs);
+      writeAppCache(state.allData, state.sheetNames);
+      if (state.subTab === 'OS') renderList();
+      showToast('เกิดข้อผิดพลาด', true);
+    });
 }
 
 // ── Barcode Modal ────────────────────────────────────────────────
@@ -732,7 +839,7 @@ function renderSubTabs() {
   if (!el) return;
   el.innerHTML = (state.sheetNames || []).map(function(name) {
     var activeCls = name === state.subTab ? ' active' : '';
-    return '<button class="subtab-btn' + activeCls + ' px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-500 active:scale-95 transition-all" onclick="' + ea('switchSubTab(' + ja(name) + ',this)') + '">' + ea(name) + '</button>';
+    return '<button class="subtab-btn' + activeCls + ' px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-500 active:scale-95 transition-all" data-subtab="' + ea(name) + '" onclick="' + ea('switchSubTab(' + ja(name) + ',this)') + '">' + ea(name) + '</button>';
   }).join('');
   syncActiveSubTab();
 }
@@ -1119,7 +1226,7 @@ function findKnownScannerMatch(rawText, candidates) {
     var item = known[i];
     var score = 0;
     var index = rawDigits.indexOf(item.digits);
-     
+
     if (text === item.sku || rawDigits === item.digits || strippedDigits === item.digits) {
       score = 1500 + item.digits.length;
     } else if (candidateScoreByDigits[item.digits]) {
@@ -1206,9 +1313,10 @@ function scannerSearchProduct() {
           var u = uid(rows[j].sheetName || names[i], rows[j].rowIndex);
           var cardEl = document.getElementById('title_' + u);
           if (cardEl) {
-            cardEl.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            cardEl.closest('.bg-white').classList.add('highlight-product');
-            setTimeout(function() { cardEl.closest('.bg-white').classList.remove('highlight-product'); }, 2500);
+            var productCard = cardEl.closest('.product-card') || cardEl.closest('.bg-white');
+            productCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            productCard.classList.add('highlight-product');
+            setTimeout(function() { productCard.classList.remove('highlight-product'); }, 2500);
           }
           found = true;
         }
