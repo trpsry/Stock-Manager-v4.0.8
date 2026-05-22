@@ -628,13 +628,12 @@ function saveLot(sn, ri, u) {
   callGAS('saveLotData', { sheet: sn, row: ri, l1: lots[0], l2: lots[1], l3: lots[2], l4: lots[3] })
     .then(function(raw) {
       var res = JSON.parse(raw);
-      btn.disabled = false; btn.textContent = 'บนทึก Lot';
+      btn.disabled = false; btn.textContent = 'บันทึก Lot';
       if (res.success) { var t = res.lotTime || optimisticTime; updLots(sn,ri,lots,t); patchLotTime(u,t); showToast('บันทึก Lot สำเร็จ ✓'); renderList(); }
       else { updLots(sn,ri,prevLots,prevTime); showToast('ผิดพลาด: '+res.error,true); }
     })
-    .catch(function(err) { updLots(sn,ri,prevLots,prevTime); btn.disabled=false; btn.textContent='บนทึก Lot'; showToast('ผิดพลาด: '+(err.message||'Unknown'),true); });
+    .catch(function(err) { updLots(sn,ri,prevLots,prevTime); btn.disabled=false; btn.textContent='บันทึก Lot'; showToast('ผิดพลาด: '+(err.message||'Unknown'),true); });
 }
-
 
 function saveOh(sn, ri, u) {
   var btn = document.getElementById('ohbtn_' + u);
