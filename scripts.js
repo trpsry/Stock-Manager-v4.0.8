@@ -622,21 +622,19 @@ function saveLot(sn, ri, u) {
   var r = getRow(sn, ri);
   var prevLots = r ? [r.lot1,r.lot2,r.lot3,r.lot4] : ['','','',''];
   var prevTime = r ? r.lotTime : '';
-    var optimisticTime = localTimestamp(); // ✅ เพิ่มบรรทัดนี้
+  var optimisticTime = localTimestamp();
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
 
-  callGAS('saveLotData', ...)
+  callGAS('saveLotData', { sheet: sn, row: ri, l1: lots[0], l2: lots[1], l3: lots[2], l4: lots[3] })
     .then(function(raw) {
-      ...
-      if (res.success) {
-        var t = res.lotTime || optimisticTime; // ✅ เปลี่ยนบรรทัดนี้
-        updLots(sn,ri,lots,t); patchLotTime(u,t); showToast('บันทึก Lot สำเร็จ ✓'); renderList();
-      }
-
+      var res = JSON.parse(raw);
+      btn.disabled = false; btn.textContent = 'บนทึก Lot';
+      if (res.success) { var t = res.lotTime || optimisticTime; updLots(sn,ri,lots,t); patchLotTime(u,t); showToast('บันทึก Lot สำเร็จ ✓'); renderList(); }
       else { updLots(sn,ri,prevLots,prevTime); showToast('ผิดพลาด: '+res.error,true); }
     })
-    .catch(function(err) { updLots(sn,ri,prevLots,prevTime); btn.disabled=false; btn.textContent='บันทึก Lot'; showToast('ผิดพลาด: '+(err.message||'Unknown'),true); });
+    .catch(function(err) { updLots(sn,ri,prevLots,prevTime); btn.disabled=false; btn.textContent='บนทึก Lot'; showToast('ผิดพลาด: '+(err.message||'Unknown'),true); });
 }
+
 
 function saveOh(sn, ri, u) {
   var btn = document.getElementById('ohbtn_' + u);
@@ -669,13 +667,14 @@ function clearLot(sn, ri, u) {
   var prevLots = r ? [r.lot1,r.lot2,r.lot3,r.lot4] : ['','','',''];
   var prevTime = r ? r.lotTime : '';
   var empty = ['','','',''];
+  var optimisticTime = localTimestamp();
   btn.disabled = true; btn.textContent = '...';
 
   callGAS('clearLotData', { sheet: sn, row: ri })
     .then(function(raw) {
       var res = JSON.parse(raw);
       btn.disabled = false; btn.textContent = 'ล้าง Lot';
-      if (res.success) { setAllLots(u,empty); updLots(sn,ri,empty,res.lotTime); patchLotTime(u,res.lotTime); showToast('ล้างข้อมูลสำเร็จ ✓'); renderList(); }
+      if (res.success) { var t = res.lotTime || optimisticTime; setAllLots(u,empty); updLots(sn,ri,empty,t); patchLotTime(u,t); showToast('ล้างข้อมูลสำเร็จ ✓'); renderList(); }
       else { setAllLots(u,prevLots); updLots(sn,ri,prevLots,prevTime); showToast('ผิดพลาด: '+res.error,true); }
     })
     .catch(function(err) { setAllLots(u,prevLots); updLots(sn,ri,prevLots,prevTime); btn.disabled=false; btn.textContent='ล้าง Lot'; showToast('ผิดพลาด: '+(err.message||'Unknown'),true); });
