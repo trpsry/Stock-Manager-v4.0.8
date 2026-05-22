@@ -1100,6 +1100,8 @@ function getKnownScannerSkus() {
 function findKnownScannerMatch(rawText, candidates) {
   var text = String(rawText || '').trim();
   var rawDigits = normalizeScannerDigits(text);
+  // ✅ เพิ่มบรรทัดนี้ — strip leading digit ถ้าเป็น ITF-14
+  var strippedDigits = rawDigits.length === 14 ? rawDigits.substr(1) : rawDigits;
   var known = getKnownScannerSkus();
   var best = null;
   var candidateScoreByDigits = {};
@@ -1117,8 +1119,8 @@ function findKnownScannerMatch(rawText, candidates) {
     var item = known[i];
     var score = 0;
     var index = rawDigits.indexOf(item.digits);
-
-    if (text === item.sku || rawDigits === item.digits) {
+     
+    if (text === item.sku || rawDigits === item.digits || strippedDigits === item.digits) {
       score = 1500 + item.digits.length;
     } else if (candidateScoreByDigits[item.digits]) {
       score = 1100 + candidateScoreByDigits[item.digits] + item.digits.length;
